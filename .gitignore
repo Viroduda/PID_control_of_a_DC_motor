@@ -1,0 +1,15 @@
+# Carpetas de compilación
+/Debug/
+/Release/
+
+# Archivos temporales de STM32CubeIDE / Eclipse
+.settings/
+*.launch
+
+# Archivos binarios y de salida
+*.elf
+*.hex
+*.bin
+*.map
+*.o
+*.d
