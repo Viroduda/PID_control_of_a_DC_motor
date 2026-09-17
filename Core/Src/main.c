@@ -40,18 +40,18 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
+UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 volatile uint16_t position_reference = 0;
+char tx_buff[64];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_USART2_UART_Init(void);
 /* USER CODE BEGIN PFP */
-void USART2_Init(void);
-void USART2_WriteChar(char ch);
-int __io_putchar(int ch);
 void ADC_Init(void);
 /* USER CODE END PFP */
 
@@ -89,16 +89,17 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
   ADC_Init();
-  USART2_Init();
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  printf("Position reference: %d\r\n", position_reference);
+	  int len = sprintf(tx_buff, "Position reference: %d\r\n", position_reference);
+	  HAL_UART_Transmit(&huart2, (uint8_t*)tx_buff, len, 1000);
 	  HAL_Delay(100);
     /* USER CODE END WHILE */
 
@@ -149,6 +150,39 @@ void SystemClock_Config(void)
 }
 
 /**
+  * @brief USART2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART2_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART2_Init 0 */
+
+  /* USER CODE END USART2_Init 0 */
+
+  /* USER CODE BEGIN USART2_Init 1 */
+
+  /* USER CODE END USART2_Init 1 */
+  huart2.Instance = USART2;
+  huart2.Init.BaudRate = 115200;
+  huart2.Init.WordLength = UART_WORDLENGTH_8B;
+  huart2.Init.StopBits = UART_STOPBITS_1;
+  huart2.Init.Parity = UART_PARITY_NONE;
+  huart2.Init.Mode = UART_MODE_TX_RX;
+  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART2_Init 2 */
+
+  /* USER CODE END USART2_Init 2 */
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -179,33 +213,6 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-void USART2_Init(void)
-{
-    RCC->APB1ENR |= (1 << 17);
-    RCC->AHB1ENR |= (1 << 0);
-
-    GPIOA->MODER &= ~((3 << (2*2)) | (3 << (3*2)));
-    GPIOA->MODER |=  ((2 << (2*2)) | (2 << (3*2)));
-
-    GPIOA->AFR[0] &= ~((0xF << (4*2)) | (0xF << (4*3)));
-    GPIOA->AFR[0] |=  ((7 << (4*2)) | (7 << (4*3)));
-
-    USART2->BRR = (uint16_t)(16000000 / 115200);
-    USART2->CR1 = (1 << 13) | (1 << 3) | (1 << 2);
-}
-
-void USART2_WriteChar(char ch)
-{
-    while (!(USART2->SR & (1 << 7)));
-    USART2->DR = (ch & 0xFF);
-}
-
-int __io_putchar(int ch)
-{
-    USART2_WriteChar(ch);
-    return ch;
-}
-
 void ADC_Init(void)
 {
 	RCC->APB2ENR |= (1 << 8);	// enabling digital clock for the ADC
