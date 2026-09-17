@@ -98,7 +98,7 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  int len = sprintf(tx_buff, "Position reference: %d\r\n", position_reference);
+	  int len = sprintf(tx_buff, "%d\r\n", position_reference);
 	  HAL_UART_Transmit(&huart2, (uint8_t*)tx_buff, len, 1000);
 	  HAL_Delay(100);
     /* USER CODE END WHILE */
