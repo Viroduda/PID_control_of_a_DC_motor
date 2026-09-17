@@ -41,7 +41,7 @@
 
 /* Private variables ---------------------------------------------------------*/
 /* USER CODE BEGIN PV */
-
+extern uint16_t position_reference;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -199,5 +199,11 @@ void SysTick_Handler(void)
 /******************************************************************************/
 
 /* USER CODE BEGIN 1 */
-
+void ADC_IRQHandler(void)
+{
+	if (ADC1->SR & (1 << 1))  // EOC flag (End Of Conversion)
+	{
+		position_reference = ADC1->DR; // Leer el valor limpia el flag EOC automáticamente
+	}
+}
 /* USER CODE END 1 */
