@@ -199,6 +199,9 @@ while counter2 < final_time:
     if ref_str:
         #print(ref_str)
         ref_num = float(ref_str)
+
+##    message = "Hola\r\n"
+##    ser.write(message.encode('utf-8'))
     
     # Plotting and debugging the motor status
     tim = save_data(Th_final, Th, u, tim)

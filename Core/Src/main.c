@@ -22,6 +22,7 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "stdio.h"
+#include "string.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -45,6 +46,8 @@ UART_HandleTypeDef huart2;
 /* USER CODE BEGIN PV */
 volatile uint16_t position_reference = 0;
 char tx_buff[64];
+char rx_buff[64];
+char message_received[64];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -100,7 +103,9 @@ int main(void)
   {
 	  int len = sprintf(tx_buff, "%d\r\n", position_reference);
 	  HAL_UART_Transmit(&huart2, (uint8_t*)tx_buff, len, 1000);
-	  HAL_Delay(100);
+ 	  HAL_Delay(100);
+	  HAL_UART_Receive(&huart2, (uint8_t*)rx_buff, 64, 1000);
+	  memcpy(message_received, rx_buff, sizeof(rx_buff));
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
