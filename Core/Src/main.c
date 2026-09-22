@@ -45,9 +45,22 @@ UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
 volatile uint16_t position_reference = 0;
-char tx_buff[64];
-char rx_buff[64];
+uint16_t tx_buff = 0;
+uint16_t rx_buff = 0;
 char message_received[64];
+static float Ep = 0;
+static float Ei = 0;
+static float Ed = 0;
+float error_acc = 0;
+float error_prev = 0;
+float Ed_prev = 0;
+float u_prev = 0;
+float Kp = 5;
+float Ki = 0.1;
+double Kd = 0.35;
+float alpha = 0.0075;
+float beta = 0.05;
+float Ts = 0.0001;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -56,6 +69,7 @@ static void MX_GPIO_Init(void);
 static void MX_USART2_UART_Init(void);
 /* USER CODE BEGIN PFP */
 void ADC_Init(void);
+uint16_t control_action_calc(uint16_t position_reference, uint16_t current_th, float *error_acc, float *error_prev, float *Ed_prev, float *u_prev);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -101,11 +115,18 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  int len = sprintf(tx_buff, "%d\r\n", position_reference);
-	  HAL_UART_Transmit(&huart2, (uint8_t*)tx_buff, len, 1000);
- 	  HAL_Delay(100);
-	  HAL_UART_Receive(&huart2, (uint8_t*)rx_buff, 64, 1000);
-	  memcpy(message_received, rx_buff, sizeof(rx_buff));
+	  if(HAL_UART_Receive(&huart2, (uint8_t*)&rx_buff, sizeof(rx_buff), HAL_MAX_DELAY) == HAL_OK)
+	  {
+		  tx_buff = control_action_calc(position_reference, rx_buff, &error_acc, &error_prev, &Ed_prev, &u_prev);
+		  HAL_UART_Transmit(&huart2, (uint8_t*)&tx_buff, sizeof(tx_buff), 10);
+	  }
+
+
+//	  int len = sprintf(tx_buff, "%d\r\n", position_reference);
+//	  HAL_UART_Transmit(&huart2, (uint8_t*)tx_buff, len, 1000);
+// 	  HAL_Delay(100);
+//	  HAL_UART_Receive(&huart2, (uint8_t*)rx_buff, 64, 1000);
+//	  memcpy(message_received, rx_buff, sizeof(rx_buff));
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -231,6 +252,35 @@ void ADC_Init(void)
 	ADC1->CR2 |= (1 << 0);		// enabling ADC
 	ADC1->CR2 |= (1 << 30);		// starting conversions
 	NVIC_EnableIRQ(ADC_IRQn);
+}
+
+uint16_t control_action_calc(uint16_t position_reference, uint16_t current_th, float *error_acc, float *error_prev, float *Ed_prev, float *u_prev)
+{
+	float error = (float)position_reference/217.2465 - (float)current_th/65535*6*3.1416;
+	*error_acc += error*Ts;
+
+	Ep = Kp * error;
+	Ei = Ki * (*error_acc);
+	float Ed_no_filt = Kd * (error - (*error_prev))/Ts;
+	Ed = (1.0f - alpha) * (*Ed_prev) + alpha * Ed_no_filt;
+
+	*error_prev = error;
+	*Ed_prev = Ed;
+	float u_float_filtered = Ep + Ei + Ed;
+	float u_float = (1.0f - beta) * (*u_prev) + beta * u_float_filtered;
+
+	if(u_float > 12.0f)
+	{
+		u_float = 12.0f;
+	}
+	else if (u_float < -12.0f)
+	{
+		u_float = -12.0f;
+	}
+
+	uint16_t u = (uint16_t)((u_float + 12.0f) * 2730.0f);
+	//HAL_UART_Transmit(&huart2, (uint8_t*)&u, sizeof(u), 200);
+	return u;
 }
 /* USER CODE END 4 */
 

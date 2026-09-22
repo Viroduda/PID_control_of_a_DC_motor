@@ -7,6 +7,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 import serial
+import struct
 
 
 
@@ -40,7 +41,7 @@ It = 0
 ####################################################################################################################
 # Sampling period
 ####################################################################################################################
-Ts = 0.0001 # 0.1 ms
+Ts = 0.0001 # 1 ms
 
 
 
@@ -69,14 +70,13 @@ err_prev = 0
 Ed_prev = 0
 
 
-
 ####################################################################################################################
 # Code control variables
 ####################################################################################################################
 counter1 = 0    # useful to print the results
 counter2 = 0    # useful to finish the program
 serial_init = 0
-final_time = 100000
+final_time = 20000
 
 
 
@@ -96,10 +96,10 @@ serial_initialization = 0
 fig1, ax1 = plt.subplots(figsize=(10,6))
 ##line1, = ax1.plot([], [], 'r-')
 ax1.set_xlim(0, final_time*Ts)
-ax1.set_ylim(-13, 13)
+ax1.set_ylim(-20, 20)
 x_values = []
 tim = 0
-y1_values = []
+##y1_values = []
 
 ##fig2, ax2 = plt.subplots()
 ##line2, = ax2.plot([], [], 'g-')
@@ -117,9 +117,33 @@ y3_values = []
 ####################################################################################################################
 # Functions
 ####################################################################################################################
-def save_data(Th_final, Th, u, tim):
+def serial_comm_init(serial_initialization):
+    ser = serial.Serial(port, baudrate, timeout=1)
+    print(f"Successfully connected to port {port} at {baudrate} baud")
+    time.sleep(2)
+    return ser
+
+def send_and_receive(uint16):
+    msg = int(uint16/(6*3.1416)*65535)
+    if msg > 65535:
+        msg = 65535
+    elif msg < 0:
+        msg = 0
+    msg = msg.to_bytes(2, byteorder='little',signed=False)
+    ser.write(msg)
+    ser.flush()
+
+    u_raw = ser.read(2)
+    if len(u_raw) == 2:
+        u_unpack = struct.unpack('H', u_raw)[0]
+        u_norm = (u_unpack/2730)-12
+        return u_norm
+    else:
+        TimeoutError("STM32 didn't respond at time")
+
+def save_data(Th, u, tim):
     x_values.append(tim)
-    y1_values.append(Th_final)
+    #y1_values.append(Th_final)
     y2_values.append(Th)
     y3_values.append(u)
     tim += Ts
@@ -127,7 +151,7 @@ def save_data(Th_final, Th, u, tim):
 
 def plot_data():
     # Plotting and debugging code
-    ax1.plot(x_values, y1_values, 'r-', label='Ref (rad)')
+##    ax1.plot(x_values, y1_values, 'r-', label='Ref (rad)')
     ax1.plot(x_values, y2_values, 'b-', label='Output (rad)')
     ax1.plot(x_values, y3_values, 'g-', label='Current (A)')
     plt.show()
@@ -154,7 +178,7 @@ def motor_control(err_acc, err_prev, Ed_prev, tim):
         u = -12
     return u
 
-def next_step_values(TM, Wt_prev, It_prev, eb_prev, Th):
+def next_step_values(TM, Wt_prev, It_prev, eb_prev, Th, u):
     # Computing the derivative of the angular speed (dWt) and the current (dIt)
     dWt = (TM - B*Wt_prev - TL)/J
     dIt = (u - R*It_prev - eb_prev)/L
@@ -162,6 +186,8 @@ def next_step_values(TM, Wt_prev, It_prev, eb_prev, Th):
     # Computing all the variables for the next step
     Wt = Wt_prev + dWt*Ts   # angular speed in rad/s
     Th = Th + Wt*Ts         # angular position in rad
+    if Th < 0:
+        Th = 0
     It = It_prev + dIt*Ts   # current in A
     TM = Kt*It         # mechanical torque of the motor in Nm
     eb = Ke*Wt         # electromotive inducted force in V
@@ -171,12 +197,6 @@ def next_step_values(TM, Wt_prev, It_prev, eb_prev, Th):
     It_prev = It
 
     return TM, Wt_prev, It_prev, eb, Th, Wt, It
-
-def serial_comm_init(serial_initialization):
-    ser = serial.Serial(port, baudrate, timeout=1)
-    print(f"Successfully connected to port {port} at {baudrate}Bd")
-    time.sleep(1)
-    return ser
 
 def serial_comm_finish(serial_initialization):
     ser.close()
@@ -189,37 +209,39 @@ def serial_comm_finish(serial_initialization):
 # Initializing the USART communication
 ser = serial_comm_init(serial_initialization)
 
-print("YA!")
-
 while counter2 < final_time:
-    # Reading USART port if there is an incoming message
-    if ser.in_waiting > 0:
-        ref_str = ser.readline()
-        ref_str = ref_str.decode('utf-8', errors='ignore').strip()
-    if ref_str:
-        #print(ref_str)
-        ref_num = float(ref_str)
-
-##    message = "Hola\r\n"
-##    ser.write(message.encode('utf-8'))
     
+##    if ser.in_waiting > 0: # Reading USART port if there is an incoming message
+        
+    # Reading the control action that the STM32 Nucleo-64 has computed
+    u_val = send_and_receive(Th)
+        
+    # Calculating the next step values of all state variables
+    TM, Wt_prev, It_prev, eb, Th, Wt, It = next_step_values(TM, Wt_prev, It_prev, eb, Th, u_val)
+    tim = save_data(Th, u_val, tim)
+        
+    counter2 += 1
+    counter1 += 1
+    if counter1 == 1000:
+        print(Th)
+        counter1 = 0
+    if counter2 == final_time-1:
+        plot_data()
     # Plotting and debugging the motor status
-    tim = save_data(Th_final, Th, u, tim)
+#    tim = save_data(Th_final, Th, u, tim)
 
     # Computing the position reference
-    Th_final = reference_update(ref_num)
+#    Th_final = reference_update(ref_num)
     
     # Comparing the reference value with the output
-    u = motor_control(err_acc, err_prev, Ed_prev, tim)
+#    u = motor_control(err_acc, err_prev, Ed_prev, tim)
 
     # Calculating the next step values of all state variables
-    TM, Wt_prev, It_prev, eb, Th, Wt, It = next_step_values(TM, Wt_prev, It_prev, eb, Th)
+#    TM, Wt_prev, It_prev, eb, Th, Wt, It = next_step_values(TM, Wt_prev, It_prev, eb, Th)
     
     # plus one step
-    counter1 += 1
-    counter2 += 1
+#    counter1 += 1
+#    counter2 += 1
 
-    time.sleep(Ts)
-
-    if counter2 == (final_time-1):
-        plot_data()
+#    if counter2 == (final_time-1):
+#        plot_data()
