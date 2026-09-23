@@ -10,6 +10,14 @@ import serial
 import struct
 
 
+####################################################################################################################
+# DC motor equations
+####################################################################################################################
+#V = L*dIt + R*It + eb
+#eb = Ke*Wt
+#TM = J*dWt + B*Wt + TL
+#TM = Kt*It
+
 
 ####################################################################################################################
 # DC motor parameters (provisionals)
@@ -23,51 +31,21 @@ TL = 0          # load torque (0 = no load)
 Kt = Ke         # motor torque constant
 
 
-
 ####################################################################################################################
 # Initialization of variables
 ####################################################################################################################
-Wt_prev = 0     # initialization of angular speed
-It_prev = 0     # initialization of current
-TM = 0          # initialization of mechanical torque generated on the motor due to the current
-eb = 0          # electromotive inducted force
-Th_final = 100  # reference position in rad
-Th = 0          # initialization of motor position
-u = 0
-It = 0
-
+Wt_prev = 0     # initial angular speed
+It_prev = 0     # initial current
+TM = 0          # initial mechanical torque generated on the motor due to the current
+eb = 0          # initial electromotive inducted force
+Th = 0          # initial motor position
+It = 0          # initial motor current
 
 
 ####################################################################################################################
 # Sampling period
 ####################################################################################################################
-Ts = 0.0001 # 1 ms
-
-
-
-####################################################################################################################
-# DC motor equations
-####################################################################################################################
-#V = L*dIt + R*It + eb
-#eb = Ke*Wt
-#TM = J*dWt + B*Wt + TL
-#TM = Kt*It
-
-
-
-####################################################################################################################
-# PID parameters
-####################################################################################################################
-##Kp = 1
-##Ki = 0
-##Kd = 0
-Kp = 0.04
-Ki = 2
-Kd = 0.000018
-alpha = 0.1
-err_acc = 0
-err_prev = 0
-Ed_prev = 0
+Ts = 0.0001 # 0.1 ms
 
 
 ####################################################################################################################
@@ -75,24 +53,19 @@ Ed_prev = 0
 ####################################################################################################################
 counter1 = 0    # useful to print the results
 counter2 = 0    # useful to finish the program
-serial_init = 0
-final_time = 20000
-
+final_time = 50000 # seconds multiplied by 10.000
 
 
 ####################################################################################################################
 # Serial communication (USART) variables
 ####################################################################################################################
-port = 'COM3'
-baudrate = 115200
-serial_initialization = 0
-
+port = 'COM3'       # STM32 port definition
+baudrate = 115200   # baud-rate
 
 
 ####################################################################################################################
-# Plot definition and variables
+# Plot definition and plot variables
 ####################################################################################################################
-#plt.ion() # activating the interactive plot mode to see the motor evolution in real-time
 fig1, ax1 = plt.subplots(figsize=(10,6))
 line1, = ax1.plot([], [], 'r-')
 ax1.set_xlim(0, final_time*Ts)
@@ -100,24 +73,14 @@ ax1.set_ylim(-13, 20)
 x_values = []
 tim = 0
 y1_values = []
-
-##fig2, ax2 = plt.subplots()
-##line2, = ax2.plot([], [], 'g-')
-##ax2.set_xlim(0, final_time/1000)
-##ax2.set_ylim(-5.5, 5.5)
 y2_values = []
-
-##fig3, ax3 = plt.subplots()
-##line3, = ax3.plot([], [], 'b-')
-##ax3.set_xlim(0, final_time/1000)
-##ax3.set_ylim(-2, 2)
 y3_values = []
 
 
 ####################################################################################################################
 # Functions
 ####################################################################################################################
-def serial_comm_init(serial_initialization):
+def serial_comm_init():
     ser = serial.Serial(port, baudrate, timeout=1)
     print(f"Successfully connected to port {port} at {baudrate} baud")
     time.sleep(2)
@@ -162,28 +125,6 @@ def plot_data():
     ax1.plot(x_values, y3_values, 'g-', label='Current (A)')
     plt.show()
 
-def reference_update(ref_num):
-    Th_final = (ref_num/4095*24)-12
-    return Th_final
-
-def motor_control(err_acc, err_prev, Ed_prev, tim):
-    err = Th_final - Th
-    err_acc = err_acc + err*Ts
-    Ep = Kp*err
-    Ei = Ki*err_acc
-    Ed_no_filt = Kd*(err-err_prev)/Ts
-    Ed = (1-alpha)*Ed_prev + alpha*Ed_no_filt
-    err_prev = err
-    Ed_prev = Ed
-    u = Ep + Ei + Ed
-
-    # Limiting the control action
-    if u > 12:
-        u = 12
-    elif u < -12:
-        u = -12
-    return u
-
 def next_step_values(TM, Wt_prev, It_prev, eb_prev, Th, u):
     # Computing the derivative of the angular speed (dWt) and the current (dIt)
     dWt = (TM - B*Wt_prev - TL)/J
@@ -204,21 +145,15 @@ def next_step_values(TM, Wt_prev, It_prev, eb_prev, Th, u):
 
     return TM, Wt_prev, It_prev, eb, Th, Wt, It
 
-def serial_comm_finish(serial_initialization):
-    ser.close()
-    print(f"Port {port} has been closed")
-
 
 ####################################################################################################################
 # Loop
 ####################################################################################################################
 # Initializing the USART communication
-ser = serial_comm_init(serial_initialization)
+ser = serial_comm_init()
 
 while counter2 < final_time:
     
-##    if ser.in_waiting > 0: # Reading USART port if there is an incoming message
-        
     # Reading the control action that the STM32 Nucleo-64 has computed
     u_val, ref_val = send_and_receive(Th)
         
@@ -227,32 +162,12 @@ while counter2 < final_time:
     tim = save_data(ref_val, Th, u_val, tim)
 
     if counter2 == (final_time/2):
-        TL = 0.003
-    if counter2 == (final_time/5*3):
-        TL = 0
+        TL = 0.005
         
     counter2 += 1
     counter1 += 1
     if counter1 == 1000:
-        print(ref_val)
+        print(Th)
         counter1 = 0
     if counter2 == final_time-1:
         plot_data()
-    # Plotting and debugging the motor status
-#    tim = save_data(Th_final, Th, u, tim)
-
-    # Computing the position reference
-#    Th_final = reference_update(ref_num)
-    
-    # Comparing the reference value with the output
-#    u = motor_control(err_acc, err_prev, Ed_prev, tim)
-
-    # Calculating the next step values of all state variables
-#    TM, Wt_prev, It_prev, eb, Th, Wt, It = next_step_values(TM, Wt_prev, It_prev, eb, Th)
-    
-    # plus one step
-#    counter1 += 1
-#    counter2 += 1
-
-#    if counter2 == (final_time-1):
-#        plot_data()

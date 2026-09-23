@@ -55,11 +55,11 @@ float error_acc = 0;
 float error_prev = 0;
 float Ed_prev = 0;
 float u_prev = 0;
-float Kp = 10;
-float Ki = 20;
-double Kd = 1;
-float alpha = 0.0075;
-float beta = 0.05;
+float Kp = 5;
+float Ki = 2;
+double Kd = 0.35;
+float alpha = 0.01;
+float beta = 0.1;
 float Ts = 0.0001;
 /* USER CODE END PV */
 
