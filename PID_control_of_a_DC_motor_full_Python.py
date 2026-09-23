@@ -94,12 +94,12 @@ serial_initialization = 0
 ####################################################################################################################
 #plt.ion() # activating the interactive plot mode to see the motor evolution in real-time
 fig1, ax1 = plt.subplots(figsize=(10,6))
-##line1, = ax1.plot([], [], 'r-')
+line1, = ax1.plot([], [], 'r-')
 ax1.set_xlim(0, final_time*Ts)
-ax1.set_ylim(-20, 20)
+ax1.set_ylim(-13, 20)
 x_values = []
 tim = 0
-##y1_values = []
+y1_values = []
 
 ##fig2, ax2 = plt.subplots()
 ##line2, = ax2.plot([], [], 'g-')
@@ -137,13 +137,19 @@ def send_and_receive(uint16):
     if len(u_raw) == 2:
         u_unpack = struct.unpack('H', u_raw)[0]
         u_norm = (u_unpack/2730)-12
-        return u_norm
     else:
         TimeoutError("STM32 didn't respond at time")
+    ref_raw = ser.read(2)
+    if len(ref_raw) == 2:
+            ref_unpack = struct.unpack('H', ref_raw)[0]
+            ref_norm = ref_unpack/217.2465
+    else:
+        TimeoutError("STM32 didn't respond at time")
+    return u_norm, ref_norm
 
-def save_data(Th, u, tim):
+def save_data(ref_val, Th, u, tim):
     x_values.append(tim)
-    #y1_values.append(Th_final)
+    y1_values.append(ref_val)
     y2_values.append(Th)
     y3_values.append(u)
     tim += Ts
@@ -151,7 +157,7 @@ def save_data(Th, u, tim):
 
 def plot_data():
     # Plotting and debugging code
-##    ax1.plot(x_values, y1_values, 'r-', label='Ref (rad)')
+    ax1.plot(x_values, y1_values, 'r-', label='Ref (rad)')
     ax1.plot(x_values, y2_values, 'b-', label='Output (rad)')
     ax1.plot(x_values, y3_values, 'g-', label='Current (A)')
     plt.show()
@@ -214,16 +220,21 @@ while counter2 < final_time:
 ##    if ser.in_waiting > 0: # Reading USART port if there is an incoming message
         
     # Reading the control action that the STM32 Nucleo-64 has computed
-    u_val = send_and_receive(Th)
+    u_val, ref_val = send_and_receive(Th)
         
     # Calculating the next step values of all state variables
     TM, Wt_prev, It_prev, eb, Th, Wt, It = next_step_values(TM, Wt_prev, It_prev, eb, Th, u_val)
-    tim = save_data(Th, u_val, tim)
+    tim = save_data(ref_val, Th, u_val, tim)
+
+    if counter2 == (final_time/2):
+        TL = 0.003
+    if counter2 == (final_time/5*3):
+        TL = 0
         
     counter2 += 1
     counter1 += 1
     if counter1 == 1000:
-        print(Th)
+        print(ref_val)
         counter1 = 0
     if counter2 == final_time-1:
         plot_data()

@@ -55,9 +55,9 @@ float error_acc = 0;
 float error_prev = 0;
 float Ed_prev = 0;
 float u_prev = 0;
-float Kp = 5;
-float Ki = 0.1;
-double Kd = 0.35;
+float Kp = 10;
+float Ki = 20;
+double Kd = 1;
 float alpha = 0.0075;
 float beta = 0.05;
 float Ts = 0.0001;
@@ -119,6 +119,8 @@ int main(void)
 	  {
 		  tx_buff = control_action_calc(position_reference, rx_buff, &error_acc, &error_prev, &Ed_prev, &u_prev);
 		  HAL_UART_Transmit(&huart2, (uint8_t*)&tx_buff, sizeof(tx_buff), 10);
+		  //HAL_Delay(1);
+		  HAL_UART_Transmit(&huart2,(uint8_t*)&position_reference, sizeof(position_reference), 10);
 	  }
 
 
