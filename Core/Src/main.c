@@ -56,11 +56,11 @@ float error_prev = 0;
 float Ed_prev = 0;
 float u_prev = 0;
 float Kp = 5;
-float Ki = 2;
-double Kd = 0.35;
+float Ki = 1;
+double Kd = 0.45;
 float alpha = 0.01;
-float beta = 0.1;
-float Ts = 0.0001;
+float beta = 0.05;
+float Ts = 0.0002;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/

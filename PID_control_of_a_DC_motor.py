@@ -45,7 +45,7 @@ It = 0          # initial motor current
 ####################################################################################################################
 # Sampling period
 ####################################################################################################################
-Ts = 0.0001 # 0.1 ms
+Ts = 0.0002 # 0.1 ms
 
 
 ####################################################################################################################
@@ -53,7 +53,7 @@ Ts = 0.0001 # 0.1 ms
 ####################################################################################################################
 counter1 = 0    # useful to print the results
 counter2 = 0    # useful to finish the program
-final_time = 50000 # seconds multiplied by 10.000
+final_time = 1/Ts # seconds multiplied by 10.000
 
 
 ####################################################################################################################
@@ -160,9 +160,6 @@ while counter2 < final_time:
     # Calculating the next step values of all state variables
     TM, Wt_prev, It_prev, eb, Th, Wt, It = next_step_values(TM, Wt_prev, It_prev, eb, Th, u_val)
     tim = save_data(ref_val, Th, u_val, tim)
-
-    if counter2 == (final_time/2):
-        TL = 0.005
         
     counter2 += 1
     counter1 += 1
