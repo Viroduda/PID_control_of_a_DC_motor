@@ -42,4 +42,15 @@ The following parameters can be modified by the user to customize the process:
 - DC motor parameters: available in Python code
 - final_time: it defines the duration of the simulation (sec. / Ts). Available in Python code
 
-![alt text](C:\Users\Guillem\Desktop\Step.jpg)
+
+<details open>
+
+<summary><h3 style="display: inline;">Simulation<h3></summary>
+
+If we run a 1 second simulation with a reference of 13 rad aproximately, we can see in the following image that the PID control makes de motor position reach the reference in less than 300ms:
+
+![Step Response](Images/Step.jpg)
+
+The response can be tuned by means of changing the PID parameters. A faster response can be achieved by increasing Kp but as a result +12V will be applied to the motor for a longer period. Also, overshoot will probably appear and a change in Kd would be required.
+
+Feel free to play with Kp, Ki and Kd to achieve the desired behavior.
